@@ -173,27 +173,36 @@ class MessageHandler {
 
     await this.sendMessage(userId, welcomeText, client);
 
-    // Envia lista interativa (permite >3 opções) se suportado
+    // Envia botões (estáveis) em 2 grupos de 3 para cobrir 6 opções
     try {
-      const sections = [
-        {
-          title: 'Opções',
-          rows: [
-            { id: 'menu_plans', title: 'Conhecer Planos', description: 'Ver detalhes dos planos' },
-            { id: 'menu_test', title: 'Teste Grátis (4h)', description: 'Gerar acesso temporário' },
-            { id: 'menu_prices', title: 'Ver Preços', description: 'Tabela resumida' },
-            { id: 'menu_support', title: 'Suporte / Dúvidas', description: 'Ajuda e problemas' },
-            { id: 'menu_human', title: 'Falar com Atendente', description: 'Atendimento humano' },
-            { id: 'session_end', title: 'Encerrar Atendimento', description: 'Finalizar e voltar ao início' }
-          ]
-        }
-      ];
-      const list = new List('Selecione a opção desejada:', 'Abrir Menu', sections, 'Menu Principal', 'Escolha e envie');
-      await client.sendMessage(userId, list);
-      await this.saveMessage(userId, '[LIST] Menu Principal enviado', 'sent');
+      const btnGroup1 = new Buttons(
+        'Selecione uma opção abaixo:',
+        [
+          { body: 'Conhecer Planos', id: 'menu_plans' },
+          { body: 'Teste Grátis (4h)', id: 'menu_test' },
+          { body: 'Atendente', id: 'menu_human' }
+        ],
+        'Menu 1/2',
+        'Toque em uma opção'
+      );
+      await client.sendMessage(userId, btnGroup1);
+      await this.saveMessage(userId, '[BUTTONS] Menu 1/2 enviado', 'sent');
+
+      const btnGroup2 = new Buttons(
+        'Mais opções:',
+        [
+          { body: 'Preços', id: 'menu_prices' },
+          { body: 'Suporte', id: 'menu_support' },
+          { body: 'Encerrar', id: 'session_end' }
+        ],
+        'Menu 2/2',
+        'Toque em uma opção'
+      );
+      await client.sendMessage(userId, btnGroup2);
+      await this.saveMessage(userId, '[BUTTONS] Menu 2/2 enviado', 'sent');
     } catch (e) {
       // Se falhar, permanece apenas o texto inicial
-      console.log('⚠️ Falha ao enviar lista interativa, usando fallback textual.', e.message);
+      console.log('⚠️ Falha ao enviar botões, usando fallback textual.', e.message);
     }
 
     stateManager.setState(userId, stateManager.constructor.STATES.MENU);
@@ -385,8 +394,7 @@ class MessageHandler {
       client
     );
 
-    // Simula delay de processamento
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Removido delay artificial para tornar a resposta mais rápida
 
     await this.generateAndSendTest(userId, name, client);
   }
