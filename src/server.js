@@ -189,6 +189,9 @@ app.get('/', (req, res) => {
         </div>
       </div>
       
+      <!-- QRCode generator library (browser) -->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-MG3P8HqDGSGIN1qg61NBf0zspSLVqLZx1r7+EwC+7zR7V4gk4Rw0CqFq7Pp4LwTgqM0u5PmCrcsS+3Z2C+9zIA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
       <script>
         async function checkStatus() {
           try {
@@ -228,30 +231,49 @@ app.get('/', (req, res) => {
         
         function updateQRCode(data) {
           const qrContainer = document.getElementById('qrcode');
-          
+
+          // Limpa conteúdo anterior
+          qrContainer.innerHTML = '';
+
           if (data.authenticated) {
             qrContainer.innerHTML = \`
-              <div style="color: #10b981; font-size: 48px; margin: 20px 0;">
+              <div style=\"color: #10b981; font-size: 48px; margin: 20px 0;\">
                 ✅
               </div>
-              <div style="color: #059669; font-weight: bold; font-size: 18px;">
+              <div style=\"color: #059669; font-weight: bold; font-size: 18px;\">
                 WhatsApp Conectado com Sucesso!
               </div>
-              <div style="color: #6b7280; margin-top: 10px;">
+              <div style=\"color: #6b7280; margin-top: 10px;\">
                 O bot está online e pronto para receber mensagens
               </div>
             \`;
-          } else if (data.qrCode) {
-            qrContainer.innerHTML = \`<pre style="font-size: 3px; line-height: 3px; font-family: monospace;">\${data.qrCode}</pre>\`;
-          } else {
-            qrContainer.innerHTML = \`
-              <div class="qr-placeholder loading-animation">
-                <div style="font-size: 48px; margin-bottom: 10px;">⌛</div>
-                <div>Gerando QR Code...</div>
-                <div style="font-size: 12px; margin-top: 10px;">Aguarde alguns instantes</div>
-              </div>
-            \`;
+            return;
           }
+
+          if (data.qrCode) {
+            // Gera QR Code visual no navegador
+            try {
+              new QRCode(qrContainer, {
+                text: data.qrCode,
+                width: 280,
+                height: 280,
+                correctLevel: QRCode.CorrectLevel.M
+              });
+            } catch (e) {
+              // Fallback simples
+              qrContainer.innerHTML = \`<pre style=\"font-size: 3px; line-height: 3px; font-family: monospace;\">\${data.qrCode}</pre>\`;
+            }
+            return;
+          }
+
+          // Estado de carregamento
+          qrContainer.innerHTML = \`
+            <div class=\"qr-placeholder loading-animation\">
+              <div style=\"font-size: 48px; margin-bottom: 10px;\">⌛</div>
+              <div>Gerando QR Code...</div>
+              <div style=\"font-size: 12px; margin-top: 10px;\">Aguarde alguns instantes</div>
+            </div>
+          \`;
         }
         
         // Atualiza a cada 3 segundos
