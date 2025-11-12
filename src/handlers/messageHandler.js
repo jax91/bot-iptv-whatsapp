@@ -250,6 +250,7 @@ class MessageHandler {
       if (sel === 'menu_support') return await this.showSupport(message, client);
       if (sel === 'menu_human') return await this.transferToHuman(message, client);
       if (sel === 'session_end') return await this.endSession(userId, client);
+      if (sel === 'start_over') return await this.handleInitialContact(message, client);
     }
 
     if (messageText.match(/^[1-5]$/)) {
@@ -691,10 +692,25 @@ class MessageHandler {
    */
   async endSession(userId, client) {
     await this.sendMessage(userId,
-      '✅ Atendimento encerrado!\n\nObrigado por conversar com a *' + this.COMPANY_NAME + '*! 😊\n' +
-      'Quando quiser voltar é só mandar *oi* ou *menu*. Até logo! 👋',
+      '✅ Atendimento encerrado!\n\nObrigado por conversar com a *' + this.COMPANY_NAME + '*! 😊',
       client
     );
+
+    // Oferece recomeçar imediatamente via botão
+    try {
+      const endButtons = new Buttons(
+        'Deseja iniciar um novo atendimento agora?',
+        [
+          { body: 'Recomeçar', id: 'start_over' },
+          { body: 'Atendente', id: 'menu_human' }
+        ],
+        'Atendimento Encerrado',
+        'Escolha uma opção'
+      );
+      await client.sendMessage(userId, endButtons);
+    } catch (e) {
+      await this.sendMessage(userId, 'Para começar de novo, envie: *oi* ou *menu*. 👋', client);
+    }
     stateManager.resetState(userId);
   }
 
