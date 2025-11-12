@@ -8,6 +8,8 @@ const testGenerator = require('./testGenerator');
 const Client = require('../models/Client');
 const { getGreeting, isValidPhone } = require('../utils/helpers');
 const paymentService = require('../services/paymentService');
+// Componentes interativos do whatsapp-web.js
+const { Buttons, List } = require('whatsapp-web.js');
 
 class MessageHandler {
   constructor() {
@@ -154,23 +156,38 @@ class MessageHandler {
     const userId = message.from;
     const greeting = getGreeting();
 
-    const welcomeMessage = `${greeting} Seja muito bem-vindo(a) à *${this.COMPANY_NAME}*! 😊
+    // Mensagem de boas vindas textual (fallback para clientes sem suporte a interativos)
+    const welcomeText = `${greeting} Seja muito bem-vindo(a) à *${this.COMPANY_NAME}*! 😊\n\n` +
+      `Eu sou a *${this.BOT_NAME}*, sua assistente virtual! Estou aqui para te ajudar a encontrar o melhor plano de IPTV! 📺✨\n\n` +
+      `Temos milhares de canais, filmes, séries e muito mais em alta qualidade! 🎬\n\n` +
+      `*Escolha abaixo:* (você pode clicar)\n` +
+      `Ou digite o número se os botões não aparecerem.\n` +
+      `1️⃣ Planos | 2️⃣ Teste Grátis | 3️⃣ Preços | 4️⃣ Atendente | 5️⃣ Suporte`;
 
-Eu sou a *${this.BOT_NAME}*, sua assistente virtual! Estou aqui para te ajudar a encontrar o melhor plano de IPTV! 📺✨
+    await this.sendMessage(userId, welcomeText, client);
 
-Temos milhares de canais, filmes, séries e muito mais em alta qualidade! 🎬
+    // Envia lista interativa (permite >3 opções) se suportado
+    try {
+      const sections = [
+        {
+          title: 'Opções',
+          rows: [
+            { id: 'menu_plans', title: 'Conhecer Planos', description: 'Ver detalhes dos planos' },
+            { id: 'menu_test', title: 'Teste Grátis (4h)', description: 'Gerar acesso temporário' },
+            { id: 'menu_prices', title: 'Ver Preços', description: 'Tabela resumida' },
+            { id: 'menu_support', title: 'Suporte / Dúvidas', description: 'Ajuda e problemas' },
+            { id: 'menu_human', title: 'Falar com Atendente', description: 'Atendimento humano' }
+          ]
+        }
+      ];
+      const list = new List('Selecione a opção desejada:', 'Abrir Menu', sections, 'Menu Principal', 'Escolha e envie');
+      await client.sendMessage(userId, list);
+      await this.saveMessage(userId, '[LIST] Menu Principal enviado', 'sent');
+    } catch (e) {
+      // Se falhar, permanece apenas o texto inicial
+      console.log('⚠️ Falha ao enviar lista interativa, usando fallback textual.', e.message);
+    }
 
-*O que você gostaria de fazer?*
-
-1️⃣ 📋 Conhecer nossos planos
-2️⃣ 🎁 Ganhar teste GRATUITO (4h)
-3️⃣ 💰 Saber sobre preços
-4️⃣ 👤 Falar com atendente humano
-5️⃣ ❓ Tirar dúvidas
-
-_Digite o número da opção ou me conte o que procura!_ 🤗`;
-
-    await this.sendMessage(userId, welcomeMessage, client);
     stateManager.setState(userId, stateManager.constructor.STATES.MENU);
   }
 
@@ -187,6 +204,33 @@ _Digite o número da opção ou me conte o que procura!_ 🤗`;
       support: ['ajuda', 'suporte', 'duvida', 'dúvida', 'problema', '5'],
       human: ['humano', 'atendente', 'pessoa', 'operador', '4']
     };
+
+    // Interação via List (menu principal)
+    if (message.type === 'list_response' && message.selectedRowId) {
+      const sel = message.selectedRowId;
+      switch (sel) {
+        case 'menu_plans':
+          await this.showPlans(message, client); return;
+        case 'menu_test':
+          await this.startTestRequest(message, client); return;
+        case 'menu_prices':
+          await this.showPlans(message, client); return; // reutiliza planos como "preços"
+        case 'menu_support':
+          await this.showSupport(message, client); return;
+        case 'menu_human':
+          await this.transferToHuman(message, client); return;
+      }
+    }
+
+    // Interação via Botões (caso algum fluxo use)
+    if (message.type === 'buttons_response' && message.selectedButtonId) {
+      const sel = message.selectedButtonId;
+      if (sel === 'menu_plans') return await this.showPlans(message, client);
+      if (sel === 'menu_test') return await this.startTestRequest(message, client);
+      if (sel === 'menu_prices') return await this.showPlans(message, client);
+      if (sel === 'menu_support') return await this.showSupport(message, client);
+      if (sel === 'menu_human') return await this.transferToHuman(message, client);
+    }
 
     if (messageText.match(/^[1-5]$/)) {
       switch (messageText) {
@@ -353,13 +397,28 @@ _Digite o número da opção ou me conte o que procura!_ 🤗`;
       }
 
       // Envia mensagem adicional
-      await this.sendMessage(userId,
-        `Alguma dúvida sobre como configurar? Estou aqui para ajudar! 😊\n\n` +
-        `Ou se preferir, posso te mostrar nossos planos para depois do teste! 📺`,
-        client
-      );
+      // Envia botões para próximos passos
+      try {
+        const nextButtons = new Buttons(
+          'Tudo certo com seu acesso? Precisa de ajuda ou quer conhecer nossos planos?',
+          [
+            { body: 'Ver Planos', id: 'posttest_plans' },
+            { body: 'Suporte', id: 'posttest_support' },
+            { body: 'Nada Agora', id: 'posttest_done' }
+          ],
+          'Depois do Teste',
+          'Escolha uma opção'
+        );
+        await client.sendMessage(userId, nextButtons);
+        await this.saveMessage(userId, '[BUTTONS] Pós Teste', 'sent');
+      } catch (e) {
+        await this.sendMessage(userId,
+          `Alguma dúvida sobre como configurar? Digite *planos*, *suporte* ou *menu* quando quiser continuar.`,
+          client
+        );
+      }
 
-      stateManager.setState(userId, stateManager.constructor.STATES.FEEDBACK);
+      stateManager.setState(userId, stateManager.constructor.STATES.FEEDBACK, { expectingSuggestion: false });
 
     } catch (error) {
       if (error.message === 'CLIENT_ALREADY_TESTED') {
@@ -511,18 +570,44 @@ _Digite o número da opção ou me conte o que procura!_ 🤗`;
    */
   async handleFeedback(messageText, message, client) {
     const userId = message.from;
+    const expectingSuggestion = stateManager.getStateData(userId, 'expectingSuggestion');
 
-    // Salva feedback
-    await this.saveMessage(userId, `FEEDBACK: ${messageText}`, 'received');
+    // Resposta de botões pós-teste
+    if (message.type === 'buttons_response' && message.selectedButtonId) {
+      const sel = message.selectedButtonId;
+      if (sel === 'posttest_plans') {
+        return await this.showPlans(message, client);
+      }
+      if (sel === 'posttest_support') {
+        return await this.showSupport(message, client);
+      }
+      if (sel === 'posttest_done') {
+        await this.sendMessage(userId, 'Perfeito! Se precisar de algo depois é só digitar *menu*. Aproveite seu teste! 🎉', client);
+        stateManager.setState(userId, stateManager.constructor.STATES.MENU);
+        return;
+      }
+    }
 
-    await this.sendMessage(userId,
-      `Obrigado pelo feedback! 😊\n\n` +
-      `Precisa de mais alguma coisa? Estou aqui para ajudar!\n\n` +
-      `Digite *"menu"* para voltar ao início! 📋`,
-      client
-    );
+    // Fluxo de coleta de sugestão (sim/não futuramente)
+    if (!expectingSuggestion && (messageText.includes('sugest') || messageText.includes('ideia') )) {
+      stateManager.updateStateData(userId, { expectingSuggestion: true });
+      await this.sendMessage(userId, 'Claro! Pode me enviar sua sugestão. 😊', client);
+      return;
+    }
 
-    stateManager.setState(userId, stateManager.constructor.STATES.MENU);
+    if (expectingSuggestion) {
+      await this.saveMessage(userId, `SUGESTAO: ${messageText}`, 'received');
+      await this.sendMessage(userId, 'Obrigado pela sugestão! Isso nos ajuda a melhorar. 🙏 Digite *menu* para voltar.', client);
+      stateManager.setState(userId, stateManager.constructor.STATES.MENU);
+      return;
+    }
+
+    // Caso texto livre pós teste
+    if (messageText === 'menu') {
+      return await this.handleInitialContact(message, client);
+    }
+
+    await this.sendMessage(userId, 'Se quiser ver *planos*, pedir *suporte* ou voltar ao *menu*, é só digitar essas palavras. 😉', client);
   }
 
   /**
@@ -561,6 +646,20 @@ _Digite o número da opção ou me conte o que procura!_ 🤗`;
       console.log(`📤 Enviado para ${userId}`);
     } catch (error) {
       console.error('❌ Erro ao enviar mensagem:', error);
+    }
+  }
+
+  /**
+   * Envia botões (utilitário genérico) - não usado amplamente ainda
+   */
+  async sendButtons(userId, client, text, buttons, title = '', footer = '') {
+    try {
+      const btn = new Buttons(text, buttons, title, footer);
+      await client.sendMessage(userId, btn);
+      await this.saveMessage(userId, `[BUTTONS] ${title}`, 'sent');
+    } catch (e) {
+      console.log('⚠️ Falha ao enviar botões, fallback texto.', e.message);
+      await this.sendMessage(userId, text + '\n(Envio de botões indisponível, responda por texto)', client);
     }
   }
 
