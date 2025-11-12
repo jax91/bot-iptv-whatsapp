@@ -5,6 +5,7 @@
 
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
+const server = require('../server');
 
 class WhatsAppConfig {
   constructor() {
@@ -45,11 +46,15 @@ class WhatsAppConfig {
         console.log('📱 QR Code gerado! Escaneie com seu WhatsApp:');
         qrcode.generate(qr, { small: true });
         console.log('\n⏳ Aguardando leitura do QR Code...');
+        
+        // Disponibiliza QR Code no servidor HTTP
+        server.setQRCode(qr);
       });
 
       // Evento: Autenticação bem-sucedida
       this.client.on('authenticated', () => {
         console.log('✅ Autenticação realizada com sucesso!');
+        server.setAuthenticated();
       });
 
       // Evento: Cliente pronto para uso
@@ -58,6 +63,7 @@ class WhatsAppConfig {
         console.log('✅ Bot IPTV WhatsApp está ONLINE!');
         console.log('📞 Pronto para receber mensagens!');
         console.log('⏰ Iniciado em:', new Date().toLocaleString('pt-BR'));
+        server.setStatus('WhatsApp Online e Funcionando!');
       });
 
       // Evento: Falha na autenticação

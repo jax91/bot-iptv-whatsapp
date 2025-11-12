@@ -18,8 +18,8 @@ class MessageHandler {
     this.plans = [
       {
         id: 1,
-        name: 'Plano Gold',
-        price: 19.90,
+        name: 'Plano Mensal',
+        price: 29.90,
         duration: 30,
         channels: 5000,
         quality: 'HD',

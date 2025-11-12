@@ -13,6 +13,7 @@ const database = require('../database/connection');
 const messageHandler = require('./handlers/messageHandler');
 const notificationService = require('./services/notificationService');
 const TestAccount = require('./models/TestAccount');
+const server = require('./server');
 
 class IPTVBot {
   constructor() {
@@ -30,6 +31,9 @@ class IPTVBot {
       console.log('║   🤖 BOT IPTV WHATSAPP - INICIANDO   ║');
       console.log('╚════════════════════════════════════════╝');
       console.log('');
+
+      // Inicia servidor HTTP
+      await server.startServer();
 
       // Conecta ao banco de dados
       await database.connect();
