@@ -1,0 +1,49 @@
+# Ignorar dependências
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Ignorar sessão do WhatsApp
+whatsapp-session/
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Ignorar variáveis de ambiente
+.env
+.env.local
+.env.production
+
+# Ignorar logs
+logs/
+*.log
+
+# Ignorar arquivos do sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Ignorar arquivos temporários
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Ignorar builds
+dist/
+build/
+
+# Ignorar IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Ignorar arquivos de teste
+coverage/
+.nyc_output/
+
+# Ignorar backups
+*.bak
+backup/
