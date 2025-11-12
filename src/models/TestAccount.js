@@ -1,9 +1,13 @@
 /**
  * Model de Conta de Teste
  * Gerencia contas de teste IPTV com expiração automática
+ * Funciona com ou sem MongoDB (armazenamento em memória)
  */
 
 const mongoose = require('mongoose');
+
+// Armazenamento em memória (quando não há MongoDB)
+const memoryTests = new Map();
 
 const testAccountSchema = new mongoose.Schema({
   // Referência ao cliente
@@ -132,6 +136,47 @@ testAccountSchema.statics.cleanExpiredAccounts = async function() {
   return result.modifiedCount;
 };
 
-const TestAccount = mongoose.model('TestAccount', testAccountSchema);
+const TestAccount = mongoose.models.TestAccount || mongoose.model('TestAccount', testAccountSchema);
+
+// Métodos para armazenamento em memória
+TestAccount.createInMemory = function(data) {
+  const testId = `test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const testData = {
+    id: testId,
+    clientPhone: data.clientPhone,
+    username: data.username,
+    password: data.password,
+    serverUrl: data.serverUrl || process.env.IPTV_SERVER_URL || 'http://seu-servidor-iptv.com',
+    port: data.port || '8080',
+    status: 'ativa',
+    createdAt: new Date(),
+    expiresAt: data.expiresAt,
+    followUpSent: false,
+    converted: false
+  };
+  memoryTests.set(testId, testData);
+  return testData;
+};
+
+TestAccount.findByPhoneInMemory = function(phone) {
+  for (const [id, test] of memoryTests.entries()) {
+    if (test.clientPhone === phone && test.status === 'ativa') {
+      return test;
+    }
+  }
+  return null;
+};
+
+TestAccount.cleanExpiredInMemory = function() {
+  const now = new Date();
+  let count = 0;
+  for (const [id, test] of memoryTests.entries()) {
+    if (test.expiresAt < now && test.status === 'ativa') {
+      test.status = 'expirada';
+      count++;
+    }
+  }
+  return count;
+};
 
 module.exports = TestAccount;

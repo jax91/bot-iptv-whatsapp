@@ -11,14 +11,14 @@ const paymentService = require('../services/paymentService');
 
 class MessageHandler {
   constructor() {
-    this.COMPANY_NAME = process.env.COMPANY_NAME || 'IPTV Premium';
-    this.BOT_NAME = process.env.BOT_NAME || 'Ana';
+    this.COMPANY_NAME = process.env.COMPANY_NAME || 'FlexTV';
+    this.BOT_NAME = process.env.BOT_NAME || 'Mavie';
     
     // Planos disponíveis
     this.plans = [
       {
         id: 1,
-        name: 'Plano Básico',
+        name: 'Plano Gold',
         price: 19.90,
         duration: 30,
         channels: 5000,
@@ -569,16 +569,22 @@ _Digite o número da opção ou me conte o que procura!_ 🤗`;
    */
   async saveMessage(userId, messageText, type) {
     try {
-      let client = await Client.findOne({ phone: userId });
-      
-      if (!client) {
-        return;
-      }
+      // Tenta salvar no MongoDB
+      try {
+        let client = await Client.findOne({ phone: userId });
+        
+        if (!client) {
+          return;
+        }
 
-      client.addConversation(messageText, type);
-      await client.save();
+        client.addConversation(messageText, type);
+        await client.save();
+      } catch (error) {
+        // Se MongoDB não estiver disponível, ignora (modo memória)
+        // Os dados de estado já estão sendo gerenciados pelo stateManager
+      }
     } catch (error) {
-      console.error('❌ Erro ao salvar mensagem:', error);
+      // Ignora erros de salvamento (modo sem banco)
     }
   }
 }

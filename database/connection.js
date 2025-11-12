@@ -17,7 +17,15 @@ class Database {
    */
   async connect() {
     try {
-      const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/bot-iptv';
+      const MONGODB_URI = process.env.MONGODB_URI;
+
+      // Se não tiver MongoDB configurado, roda sem banco de dados
+      if (!MONGODB_URI || MONGODB_URI === 'mongodb://localhost:27017/bot-iptv') {
+        console.log('⚠️  MongoDB não configurado - rodando sem banco de dados');
+        console.log('💡 Dados serão armazenados apenas em memória');
+        console.log('✅ Bot funcionará normalmente (sem persistência de dados)');
+        return;
+      }
 
       console.log('🔌 Conectando ao MongoDB...');
 
@@ -43,9 +51,9 @@ class Database {
       });
 
     } catch (error) {
-      console.error('❌ Erro ao conectar no MongoDB:', error.message);
-      console.log('💡 Certifique-se de que o MongoDB está rodando');
-      process.exit(1);
+      console.error('⚠️  Erro ao conectar no MongoDB:', error.message);
+      console.log('💡 Continuando sem banco de dados (modo memória)');
+      this.connection = null;
     }
   }
 

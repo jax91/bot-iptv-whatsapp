@@ -1,9 +1,13 @@
 /**
  * Model de Cliente
  * Gerencia os dados dos clientes do sistema IPTV
+ * Funciona com ou sem MongoDB (armazenamento em memória)
  */
 
 const mongoose = require('mongoose');
+
+// Armazenamento em memória (quando não há MongoDB)
+const memoryStorage = new Map();
 
 const clientSchema = new mongoose.Schema({
   // Informações básicas
@@ -126,6 +130,36 @@ clientSchema.methods.getDaysUntilExpiration = function() {
   return diffDays > 0 ? diffDays : 0;
 };
 
+// Wrapper para funcionar com ou sem MongoDB
+const ClientModel = mongoose.models.Client || mongoose.model('Client', clientSchema);
+
+// Exporta interface unificada
+module.exports = ClientModel;
+
+// Adiciona métodos estáticos para armazenamento em memória
+module.exports.findOrCreateInMemory = function(phone, data = {}) {
+  if (!memoryStorage.has(phone)) {
+    memoryStorage.set(phone, {
+      phone,
+      name: data.name || '',
+      hasUsedTest: false,
+      conversationHistory: [],
+      createdAt: new Date(),
+      ...data
+    });
+  }
+  return memoryStorage.get(phone);
+};
+
+module.exports.updateInMemory = function(phone, data) {
+  const existing = memoryStorage.get(phone) || {};
+  memoryStorage.set(phone, { ...existing, ...data, updatedAt: new Date() });
+  return memoryStorage.get(phone);
+};
+
+module.exports.getFromMemory = function(phone) {
+  return memoryStorage.get(phone) || null;
+};
 const Client = mongoose.model('Client', clientSchema);
 
 module.exports = Client;

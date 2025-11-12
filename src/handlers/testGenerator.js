@@ -24,32 +24,54 @@ class TestGenerator {
    */
   async generateTestAccount(clientPhone, clientName) {
     try {
-      // Busca ou cria o cliente
-      let client = await Client.findOne({ phone: clientPhone });
-      
-      if (!client) {
-        client = new Client({
-          name: clientName,
-          phone: clientPhone,
-          status: 'teste'
-        });
-        await client.save();
-        console.log(`✅ Novo cliente criado: ${clientName}`);
+      let client, existingTest, testAccount;
+      const useMongoDB = process.env.MONGODB_URI && process.env.MONGODB_URI !== 'mongodb://localhost:27017/bot-iptv';
+
+      if (useMongoDB) {
+        // Modo com MongoDB
+        try {
+          client = await Client.findOne({ phone: clientPhone });
+          
+          if (!client) {
+            client = new Client({
+              name: clientName,
+              phone: clientPhone,
+              status: 'teste'
+            });
+            await client.save();
+            console.log(`✅ Novo cliente criado: ${clientName}`);
+          }
+
+          if (client.hasUsedTest) {
+            throw new Error('CLIENT_ALREADY_TESTED');
+          }
+
+          existingTest = await TestAccount.findOne({
+            clientPhone: clientPhone,
+            status: 'ativa'
+          });
+
+          if (existingTest) {
+            throw new Error('ACTIVE_TEST_EXISTS');
+          }
+        } catch (error) {
+          // Se falhar, usa modo memória
+          useMongoDB = false;
+        }
       }
 
-      // Verifica se o cliente já usou teste
-      if (client.hasUsedTest) {
-        throw new Error('CLIENT_ALREADY_TESTED');
-      }
+      if (!useMongoDB) {
+        // Modo sem MongoDB (memória)
+        client = Client.findOrCreateInMemory(clientPhone, { name: clientName, status: 'teste' });
+        
+        if (client.hasUsedTest) {
+          throw new Error('CLIENT_ALREADY_TESTED');
+        }
 
-      // Verifica se já existe teste ativo
-      const existingTest = await TestAccount.findOne({
-        clientPhone: clientPhone,
-        status: 'ativa'
-      });
-
-      if (existingTest) {
-        throw new Error('ACTIVE_TEST_EXISTS');
+        existingTest = TestAccount.findByPhoneInMemory(clientPhone);
+        if (existingTest) {
+          throw new Error('ACTIVE_TEST_EXISTS');
+        }
       }
 
       // Gera credenciais únicas
@@ -60,23 +82,34 @@ class TestGenerator {
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + this.TEST_DURATION_HOURS);
 
-      // Cria a conta de teste
-      const testAccount = new TestAccount({
-        clientId: client._id,
-        clientPhone: clientPhone,
-        username,
-        password,
-        expiresAt,
-        activatedAt: new Date()
-      });
+      if (useMongoDB) {
+        // Salva no MongoDB
+        testAccount = new TestAccount({
+          clientId: client._id,
+          clientPhone: clientPhone,
+          username,
+          password,
+          expiresAt,
+          activatedAt: new Date()
+        });
 
-      await testAccount.save();
-
-      // Atualiza o cliente
-      client.hasUsedTest = true;
-      client.testRequestDate = new Date();
-      client.status = 'teste';
-      await client.save();
+        await testAccount.save();
+        client.hasUsedTest = true;
+        client.testRequestDate = new Date();
+        client.status = 'teste';
+        await client.save();
+      } else {
+        // Salva em memória
+        testAccount = TestAccount.createInMemory({
+          clientPhone: clientPhone,
+          username,
+          password,
+          expiresAt,
+          serverUrl: process.env.IPTV_SERVER_URL,
+          port: process.env.IPTV_SERVER_PORT || '8080'
+        });
+        Client.updateInMemory(clientPhone, { hasUsedTest: true, testRequestDate: new Date(), status: 'teste' });
+      }
 
       console.log(`🎁 Conta de teste gerada: ${username} para ${clientName}`);
 
@@ -85,8 +118,8 @@ class TestGenerator {
         account: {
           username,
           password,
-          serverUrl: testAccount.serverUrl,
-          port: testAccount.port,
+          serverUrl: testAccount.serverUrl || process.env.IPTV_SERVER_URL || 'http://seu-servidor-iptv.com',
+          port: testAccount.port || '8080',
           expiresAt,
           duration: this.TEST_DURATION_HOURS
         },

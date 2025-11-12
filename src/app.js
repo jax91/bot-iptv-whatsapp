@@ -100,7 +100,15 @@ class IPTVBot {
    */
   async cleanupExpiredAccounts() {
     try {
-      const cleaned = await TestAccount.cleanExpiredAccounts();
+      // Tenta limpar do MongoDB, se não funcionar usa memória
+      let cleaned = 0;
+      try {
+        cleaned = await TestAccount.cleanExpiredAccounts();
+      } catch (error) {
+        // Se MongoDB não estiver disponível, usa método de memória
+        cleaned = TestAccount.cleanExpiredInMemory();
+      }
+      
       if (cleaned > 0) {
         console.log(`🧹 ${cleaned} contas de teste expiradas foram limpas`);
       }
