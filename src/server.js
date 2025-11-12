@@ -78,22 +78,35 @@ app.get('/', (req, res) => {
         container.innerHTML = '<div class="status ' + statusClass + '">' + statusIcon + ' ' + statusText + '</div>';
       }
       function updateQRCode(data) {
-        const qrImg = document.getElementById('qrimg');
         const qrContainer = document.getElementById('qrcode');
+        let qrImg = document.getElementById('qrimg');
+
         if (data.authenticated) {
-          qrImg.style.display = 'none';
+          if (qrImg) { qrImg.style.display = 'none'; }
           qrContainer.innerHTML = '<div style="color:#10b981;font-size:48px;margin:20px 0;">✅</div>' +
             '<div style="color:#059669;font-weight:bold;font-size:18px;">WhatsApp Conectado com Sucesso!</div>' +
             '<div style="color:#6b7280;margin-top:10px;">O bot está online e pronto para receber mensagens</div>';
           return;
         }
+
         if (data.qrCode) {
-          qrContainer.innerHTML = '';
+          if (!qrImg) {
+            // Garante que o elemento <img id="qrimg"> exista
+            qrContainer.innerHTML = '';
+            qrImg = document.createElement('img');
+            qrImg.id = 'qrimg';
+            qrImg.alt = 'QR Code';
+            qrImg.style.width = '280px';
+            qrImg.style.height = '280px';
+            qrContainer.appendChild(qrImg);
+          }
           qrImg.style.display = 'block';
+          // Cache-busting para evitar imagem antiga
           qrImg.src = '/api/qr.png?ts=' + Date.now();
           return;
         }
-        qrImg.style.display = 'none';
+
+        if (qrImg) { qrImg.style.display = 'none'; }
         qrContainer.innerHTML = '<div class="qr-placeholder loading-animation">' +
           '<div style="font-size:48px;margin-bottom:10px;">⌛</div>' +
           '<div>Gerando QR Code...</div>' +
