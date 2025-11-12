@@ -68,6 +68,7 @@ class MessageHandler {
     try {
       const userId = message.from;
       const messageText = message.body.trim();
+      const lower = messageText.toLowerCase();
       
       console.log(`📩 Mensagem de ${userId}: ${messageText}`);
 
@@ -81,6 +82,12 @@ class MessageHandler {
 
       // Salva mensagem no histórico
       await this.saveMessage(userId, messageText, 'received');
+
+      // Comandos globais de encerramento / reset
+      if (['encerrar','finalizar','sair','resetar','recomeçar','recomecar','fim'].some(k => lower === k || lower.startsWith(k))) {
+        await this.endSession(userId, client);
+        return;
+      }
 
       // Verifica se está em transferência humana
       if (stateManager.isInHumanTransfer(userId)) {
@@ -176,7 +183,8 @@ class MessageHandler {
             { id: 'menu_test', title: 'Teste Grátis (4h)', description: 'Gerar acesso temporário' },
             { id: 'menu_prices', title: 'Ver Preços', description: 'Tabela resumida' },
             { id: 'menu_support', title: 'Suporte / Dúvidas', description: 'Ajuda e problemas' },
-            { id: 'menu_human', title: 'Falar com Atendente', description: 'Atendimento humano' }
+            { id: 'menu_human', title: 'Falar com Atendente', description: 'Atendimento humano' },
+            { id: 'session_end', title: 'Encerrar Atendimento', description: 'Finalizar e voltar ao início' }
           ]
         }
       ];
@@ -219,6 +227,8 @@ class MessageHandler {
           await this.showSupport(message, client); return;
         case 'menu_human':
           await this.transferToHuman(message, client); return;
+        case 'session_end':
+          await this.endSession(userId, client); return;
       }
     }
 
@@ -230,6 +240,7 @@ class MessageHandler {
       if (sel === 'menu_prices') return await this.showPlans(message, client);
       if (sel === 'menu_support') return await this.showSupport(message, client);
       if (sel === 'menu_human') return await this.transferToHuman(message, client);
+      if (sel === 'session_end') return await this.endSession(userId, client);
     }
 
     if (messageText.match(/^[1-5]$/)) {
@@ -404,7 +415,8 @@ class MessageHandler {
           [
             { body: 'Ver Planos', id: 'posttest_plans' },
             { body: 'Suporte', id: 'posttest_support' },
-            { body: 'Nada Agora', id: 'posttest_done' }
+            { body: 'Nada Agora', id: 'posttest_done' },
+            { body: 'Encerrar', id: 'session_end' }
           ],
           'Depois do Teste',
           'Escolha uma opção'
@@ -586,6 +598,9 @@ class MessageHandler {
         stateManager.setState(userId, stateManager.constructor.STATES.MENU);
         return;
       }
+      if (sel === 'session_end') {
+        await this.endSession(userId, client); return;
+      }
     }
 
     // Fluxo de coleta de sugestão (sim/não futuramente)
@@ -661,6 +676,18 @@ class MessageHandler {
       console.log('⚠️ Falha ao enviar botões, fallback texto.', e.message);
       await this.sendMessage(userId, text + '\n(Envio de botões indisponível, responda por texto)', client);
     }
+  }
+
+  /**
+   * Encerra atendimento e reseta estado
+   */
+  async endSession(userId, client) {
+    await this.sendMessage(userId,
+      '✅ Atendimento encerrado!\n\nObrigado por conversar com a *' + this.COMPANY_NAME + '*! 😊\n' +
+      'Quando quiser voltar é só mandar *oi* ou *menu*. Até logo! 👋',
+      client
+    );
+    stateManager.resetState(userId);
   }
 
   /**
