@@ -8,8 +8,6 @@ const testGenerator = require('./testGenerator');
 const Client = require('../models/Client');
 const { getGreeting, isValidPhone } = require('../utils/helpers');
 const paymentService = require('../services/paymentService');
-// Componentes interativos do whatsapp-web.js
-const { Buttons, List } = require('whatsapp-web.js');
 
 class MessageHandler {
   constructor() {
@@ -20,40 +18,40 @@ class MessageHandler {
     this.plans = [
       {
         id: 1,
-        name: 'Plano Mensal',
-        price: 29.90,
+        name: 'Plano Slim',
+        price: 19.90,
         duration: 30,
-        channels: 5000,
-        quality: 'HD',
-        description: 'Ideal para quem está começando'
+        channels: 1000,
+        quality: 'SD e HD',
+        description: 'Apenas canais, sem filmes ou séries'
       },
       {
         id: 2,
-        name: 'Plano Padrão',
-        price: 29.90,
+        name: 'Plano Gold',
+        price: 22.90,
         duration: 30,
-        channels: 10000,
+        channels: +4000,
         quality: 'Full HD',
-        description: 'Nosso plano mais popular',
+        description: 'Voce escolhe, Canais e series, ou Canais e filmes',
         recommended: true
       },
       {
         id: 3,
-        name: 'Plano Premium',
-        price: 39.90,
+        name: 'Plano Platinum',
+        price: 28.90,
         duration: 30,
-        channels: 15000,
-        quality: '4K',
-        description: 'Experiência completa e Premium'
+        channels: +5000,
+        quality: 'FullHD + 4K',
+        description: 'Canais, Filmes e Series e Novelas'
       },
       {
         id: 4,
-        name: 'Plano Família',
-        price: 49.90,
+        name: 'Plano Diamond',
+        price: 29.90,
         duration: 30,
-        channels: 15000,
-        quality: '4K',
-        description: 'Até 4 dispositivos simultâneos',
+        channels: +6000,
+        quality: 'HD/FullHD + 4K',
+        description: 'Canais, Filmes e Series e Novelas + Canais Adultos',
         devices: 4
       }
     ];
@@ -163,47 +161,20 @@ class MessageHandler {
     const userId = message.from;
     const greeting = getGreeting();
 
-    // Mensagem de boas vindas textual (fallback para clientes sem suporte a interativos)
+    // Menu textual otimizado
     const welcomeText = `${greeting} Seja muito bem-vindo(a) à *${this.COMPANY_NAME}*! 😊\n\n` +
-      `Eu sou a *${this.BOT_NAME}*, sua assistente virtual! Estou aqui para te ajudar a encontrar o melhor plano de IPTV! 📺✨\n\n` +
-      `Temos milhares de canais, filmes, séries e muito mais em alta qualidade! 🎬\n\n` +
-      `*Escolha abaixo:* (você pode clicar)\n` +
-      `Ou digite o número se os botões não aparecerem.\n` +
-      `1️⃣ Planos | 2️⃣ Teste Grátis | 3️⃣ Preços | 4️⃣ Atendente | 5️⃣ Suporte`;
+      `Eu sou a *${this.BOT_NAME}* e vou te ajudar por aqui. 📺✨\n` +
+      `Temos milhares de canais, filmes e séries em alta qualidade.\n\n` +
+      `Escolha uma opção digitando o número:\n\n` +
+      `1) 📋 Conhecer nossos planos\n` +
+      `2) 🎁 Teste grátis (4h)\n` +
+      `3) 💰 Preços e formas de pagamento\n` +
+      `4) 👤 Falar com atendente humano\n` +
+      `5) ❓ Suporte e dúvidas\n` +
+      `6) 🔚 Encerrar atendimento\n\n` +
+      `_Dica: você também pode digitar palavras como "planos", "teste", "preços", "atendente", "suporte" ou "encerrar"._`;
 
     await this.sendMessage(userId, welcomeText, client);
-
-    // Envia botões (estáveis) em 2 grupos de 3 para cobrir 6 opções
-    try {
-      const btnGroup1 = new Buttons(
-        'Selecione uma opção abaixo:',
-        [
-          { body: 'Conhecer Planos', id: 'menu_plans' },
-          { body: 'Teste Grátis (4h)', id: 'menu_test' },
-          { body: 'Atendente', id: 'menu_human' }
-        ],
-        'Menu 1/2',
-        'Toque em uma opção'
-      );
-      await client.sendMessage(userId, btnGroup1);
-      await this.saveMessage(userId, '[BUTTONS] Menu 1/2 enviado', 'sent');
-
-      const btnGroup2 = new Buttons(
-        'Mais opções:',
-        [
-          { body: 'Preços', id: 'menu_prices' },
-          { body: 'Suporte', id: 'menu_support' },
-          { body: 'Encerrar', id: 'session_end' }
-        ],
-        'Menu 2/2',
-        'Toque em uma opção'
-      );
-      await client.sendMessage(userId, btnGroup2);
-      await this.saveMessage(userId, '[BUTTONS] Menu 2/2 enviado', 'sent');
-    } catch (e) {
-      // Se falhar, permanece apenas o texto inicial
-      console.log('⚠️ Falha ao enviar botões, usando fallback textual.', e.message);
-    }
 
     stateManager.setState(userId, stateManager.constructor.STATES.MENU);
   }
@@ -222,38 +193,12 @@ class MessageHandler {
       human: ['humano', 'atendente', 'pessoa', 'operador', '4']
     };
 
-    // Interação via List (menu principal)
-    if (message.type === 'list_response' && message.selectedRowId) {
-      const sel = message.selectedRowId;
-      switch (sel) {
-        case 'menu_plans':
-          await this.showPlans(message, client); return;
-        case 'menu_test':
-          await this.startTestRequest(message, client); return;
-        case 'menu_prices':
-          await this.showPlans(message, client); return; // reutiliza planos como "preços"
-        case 'menu_support':
-          await this.showSupport(message, client); return;
-        case 'menu_human':
-          await this.transferToHuman(message, client); return;
-        case 'session_end':
-          await this.endSession(userId, client); return;
-      }
+    // Suporte a comando direto de encerrar
+    if (['encerrar','finalizar','sair','fim'].some(k => messageText.startsWith(k))) {
+      return await this.endSession(userId, client);
     }
 
-    // Interação via Botões (caso algum fluxo use)
-    if (message.type === 'buttons_response' && message.selectedButtonId) {
-      const sel = message.selectedButtonId;
-      if (sel === 'menu_plans') return await this.showPlans(message, client);
-      if (sel === 'menu_test') return await this.startTestRequest(message, client);
-      if (sel === 'menu_prices') return await this.showPlans(message, client);
-      if (sel === 'menu_support') return await this.showSupport(message, client);
-      if (sel === 'menu_human') return await this.transferToHuman(message, client);
-      if (sel === 'session_end') return await this.endSession(userId, client);
-      if (sel === 'start_over') return await this.handleInitialContact(message, client);
-    }
-
-    if (messageText.match(/^[1-5]$/)) {
+    if (messageText.match(/^[1-6]$/)) {
       switch (messageText) {
         case '1':
         case '3':
@@ -268,6 +213,9 @@ class MessageHandler {
         case '5':
           await this.showSupport(message, client);
           break;
+        case '6':
+          await this.endSession(userId, client);
+          break;
       }
     } else if (intentions.test.some(word => messageText.includes(word))) {
       await this.startTestRequest(message, client);
@@ -277,6 +225,8 @@ class MessageHandler {
       await this.transferToHuman(message, client);
     } else if (intentions.support.some(word => messageText.includes(word))) {
       await this.showSupport(message, client);
+    } else if (['encerrar','finalizar','sair','fim'].some(k => messageText.includes(k))) {
+      await this.endSession(userId, client);
     } else {
       await this.handleUnknownInput(message, client);
     }
@@ -417,27 +367,15 @@ class MessageHandler {
       }
 
       // Envia mensagem adicional
-      // Envia botões para próximos passos
-      try {
-        const nextButtons = new Buttons(
-          'Tudo certo com seu acesso? Precisa de ajuda ou quer conhecer nossos planos?',
-          [
-            { body: 'Ver Planos', id: 'posttest_plans' },
-            { body: 'Suporte', id: 'posttest_support' },
-            { body: 'Nada Agora', id: 'posttest_done' },
-            { body: 'Encerrar', id: 'session_end' }
-          ],
-          'Depois do Teste',
-          'Escolha uma opção'
-        );
-        await client.sendMessage(userId, nextButtons);
-        await this.saveMessage(userId, '[BUTTONS] Pós Teste', 'sent');
-      } catch (e) {
-        await this.sendMessage(userId,
-          `Alguma dúvida sobre como configurar? Digite *planos*, *suporte* ou *menu* quando quiser continuar.`,
-          client
-        );
-      }
+      // Próximos passos (texto)
+      await this.sendMessage(userId,
+        `Tudo certo com seu acesso?\n\n` +
+        `- Digite *planos* para ver opções de assinatura\n` +
+        `- Digite *suporte* para ajuda\n` +
+        `- Digite *menu* para voltar ao início\n` +
+        `- Digite *encerrar* para finalizar o atendimento`,
+        client
+      );
 
       stateManager.setState(userId, stateManager.constructor.STATES.FEEDBACK, { expectingSuggestion: false });
 
@@ -568,7 +506,7 @@ class MessageHandler {
     await this.sendMessage(userId,
       `Claro! Vou te conectar com um atendente humano! 👤\n\n` +
       `Aguarde um momento, em breve alguém da nossa equipe irá te atender! ⏳\n\n` +
-      `_Horário de atendimento: 8h às 22h_ 🕐`,
+      `_Horário de atendimento: 8h às 18h_ 🕐`,
       client
     );
 
@@ -593,23 +531,15 @@ class MessageHandler {
     const userId = message.from;
     const expectingSuggestion = stateManager.getStateData(userId, 'expectingSuggestion');
 
-    // Resposta de botões pós-teste
-    if (message.type === 'buttons_response' && message.selectedButtonId) {
-      const sel = message.selectedButtonId;
-      if (sel === 'posttest_plans') {
-        return await this.showPlans(message, client);
-      }
-      if (sel === 'posttest_support') {
-        return await this.showSupport(message, client);
-      }
-      if (sel === 'posttest_done') {
-        await this.sendMessage(userId, 'Perfeito! Se precisar de algo depois é só digitar *menu*. Aproveite seu teste! 🎉', client);
-        stateManager.setState(userId, stateManager.constructor.STATES.MENU);
-        return;
-      }
-      if (sel === 'session_end') {
-        await this.endSession(userId, client); return;
-      }
+    // Palavras-chave úteis nesta fase
+    if (messageText.includes('plan')) {
+      return await this.showPlans(message, client);
+    }
+    if (messageText.includes('suporte') || messageText.includes('ajuda')) {
+      return await this.showSupport(message, client);
+    }
+    if (['encerrar','finalizar','sair','fim'].some(k => messageText.includes(k))) {
+      return await this.endSession(userId, client);
     }
 
     // Fluxo de coleta de sugestão (sim/não futuramente)
@@ -631,7 +561,7 @@ class MessageHandler {
       return await this.handleInitialContact(message, client);
     }
 
-    await this.sendMessage(userId, 'Se quiser ver *planos*, pedir *suporte* ou voltar ao *menu*, é só digitar essas palavras. 😉', client);
+    await this.sendMessage(userId, 'Dica: digite *planos*, *suporte*, *menu* ou *encerrar* a qualquer momento. 😉', client);
   }
 
   /**
@@ -673,44 +603,17 @@ class MessageHandler {
     }
   }
 
-  /**
-   * Envia botões (utilitário genérico) - não usado amplamente ainda
-   */
-  async sendButtons(userId, client, text, buttons, title = '', footer = '') {
-    try {
-      const btn = new Buttons(text, buttons, title, footer);
-      await client.sendMessage(userId, btn);
-      await this.saveMessage(userId, `[BUTTONS] ${title}`, 'sent');
-    } catch (e) {
-      console.log('⚠️ Falha ao enviar botões, fallback texto.', e.message);
-      await this.sendMessage(userId, text + '\n(Envio de botões indisponível, responda por texto)', client);
-    }
-  }
+  // (botões removidos para compatibilidade do WhatsApp Web)
 
   /**
    * Encerra atendimento e reseta estado
    */
   async endSession(userId, client) {
     await this.sendMessage(userId,
-      '✅ Atendimento encerrado!\n\nObrigado por conversar com a *' + this.COMPANY_NAME + '*! 😊',
+      '✅ Atendimento encerrado!\n\nObrigado por conversar com a *' + this.COMPANY_NAME + '*! 😊\n' +
+      'Para começar de novo, envie: *oi* ou *menu*. 👋',
       client
     );
-
-    // Oferece recomeçar imediatamente via botão
-    try {
-      const endButtons = new Buttons(
-        'Deseja iniciar um novo atendimento agora?',
-        [
-          { body: 'Recomeçar', id: 'start_over' },
-          { body: 'Atendente', id: 'menu_human' }
-        ],
-        'Atendimento Encerrado',
-        'Escolha uma opção'
-      );
-      await client.sendMessage(userId, endButtons);
-    } catch (e) {
-      await this.sendMessage(userId, 'Para começar de novo, envie: *oi* ou *menu*. 👋', client);
-    }
     stateManager.resetState(userId);
   }
 
