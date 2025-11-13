@@ -179,6 +179,11 @@ function setAuthenticated() {
 
 function setStatus(status) { botStatus = status; }
 
+function setDisconnected() {
+  isAuthenticated = false;
+  botStatus = 'Desconectado do WhatsApp';
+}
+
 // Inicia servidor
 function startServer() {
   return new Promise((resolve) => {
@@ -196,4 +201,4 @@ function startServer() {
   });
 }
 
-module.exports = { startServer, setQRCode, setAuthenticated, setStatus, app };
+module.exports = { startServer, setQRCode, setAuthenticated, setStatus, setDisconnected, app };

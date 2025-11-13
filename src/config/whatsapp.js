@@ -11,6 +11,8 @@ class WhatsAppConfig {
   constructor() {
     this.client = null;
     this.isReady = false;
+    this.reconnecting = false;
+    this.reinitTimer = null;
   }
 
   /**
@@ -27,6 +29,7 @@ class WhatsAppConfig {
           clientId: 'bot-iptv',
           dataPath: './whatsapp-session'
         }),
+        restartOnAuthFail: true,
         puppeteer: {
           headless: true,
           args: [
@@ -70,17 +73,26 @@ class WhatsAppConfig {
       this.client.on('auth_failure', (msg) => {
         console.error('❌ Falha na autenticação:', msg);
         console.log('💡 Dica: Delete a pasta whatsapp-session e tente novamente');
+        server.setStatus('Falha de autenticação. Tentando reconectar...');
+        this.queueReinitialize('auth_failure');
       });
 
       // Evento: Desconexão
       this.client.on('disconnected', (reason) => {
         console.log('⚠️  Bot desconectado:', reason);
         this.isReady = false;
+        server.setStatus('Desconectado. Tentando reconectar...');
+        if (server && typeof server.setDisconnected === 'function') {
+          server.setDisconnected();
+        }
+        this.queueReinitialize('disconnected');
       });
 
       // Evento: Erro
       this.client.on('error', (error) => {
         console.error('❌ Erro no cliente WhatsApp:', error);
+        // Em alguns erros críticos, reinitialize ajuda
+        this.queueReinitialize('error');
       });
 
       // Inicializa o cliente
@@ -92,6 +104,36 @@ class WhatsAppConfig {
       console.error('❌ Erro ao inicializar WhatsApp:', error);
       throw error;
     }
+  }
+
+  /**
+   * Agenda reinicialização segura do cliente com pequeno backoff
+   */
+  queueReinitialize(origin) {
+    if (this.reconnecting) {
+      return;
+    }
+    this.reconnecting = true;
+    if (this.reinitTimer) {
+      clearTimeout(this.reinitTimer);
+      this.reinitTimer = null;
+    }
+    const delay = 5000; // 5s
+    console.log(`🔁 Reagendando inicialização do WhatsApp (origem: ${origin}) em ${delay}ms`);
+    this.reinitTimer = setTimeout(async () => {
+      try {
+        await this.destroy();
+      } catch (e) {
+        // ignora
+      }
+      try {
+        await this.initialize();
+      } catch (e) {
+        console.error('❌ Erro ao reinicializar WhatsApp:', e);
+      } finally {
+        this.reconnecting = false;
+      }
+    }, delay);
   }
 
   /**
