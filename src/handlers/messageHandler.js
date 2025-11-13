@@ -18,40 +18,40 @@ class MessageHandler {
     this.plans = [
       {
         id: 1,
-        name: 'Plano Slim',
+        name: 'Plano Slim 📺',
         price: 19.90,
         duration: 30,
         channels: 1000,
         quality: 'SD e HD',
-        description: 'Apenas canais, sem filmes ou séries'
+        description: 'Básico e econômico: apenas canais ao vivo. ✨'
       },
       {
         id: 2,
-        name: 'Plano Gold',
+        name: 'Plano Gold ⭐',
         price: 22.90,
         duration: 30,
-        channels: +4000,
+        channels: 4000,
         quality: 'Full HD',
-        description: 'Voce escolhe, Canais e series, ou Canais e filmes',
+        description: 'Canais + (séries ou filmes). Flexível e completo! 🎬',
         recommended: true
       },
       {
         id: 3,
-        name: 'Plano Platinum',
+        name: 'Plano Platinum 💠',
         price: 28.90,
         duration: 30,
-        channels: +5000,
+        channels: 5000,
         quality: 'FullHD + 4K',
-        description: 'Canais, Filmes e Series e Novelas'
+        description: 'Canais, Filmes, Séries e Novelas em alta qualidade. 🖥️ 4K'
       },
       {
         id: 4,
-        name: 'Plano Diamond',
+        name: 'Plano Diamond 💎',
         price: 29.90,
         duration: 30,
-        channels: +6000,
+        channels: 6000,
         quality: 'HD/FullHD + 4K',
-        description: 'Canais, Filmes e Series e Novelas + Canais Adultos',
+        description: 'Tudo incluso: Canais, Filmes, Séries, Novelas + Adultos 🔞',
         devices: 4
       }
     ];
